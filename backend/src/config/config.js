@@ -15,5 +15,6 @@ export const config = {
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     CORS_ORIGIN: process.env.CORS_ORIGIN,
     JWT_SECRET: process.env.JWT_SECRET,
-    JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET
+    JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
+    MISTRAL_API_KEY: process.env.MISTRAL_API_KEY
 }

@@ -1,14 +1,20 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai"
 import { config } from "../config/config.js"
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import { ChatMistralAI } from "@langchain/mistralai";
 
 const llm = new ChatGoogleGenerativeAI({
     apiKey: config.GOOGLE_API_KEY,
     model: "gemini-2.5-flash",
 })
 
+const mistalmodel = new ChatMistralAI({
+    apiKey: config.MISTRAL_API_KEY,
+    modelName: "mistral-small",
+});
+
 // System persona for the AI caller
-const AI_SYSTEM_PROMPT = `You are Aria, a friendly, witty, and helpful AI calling assistant on CallingWeb, a voice-calling platform. 
+const AI_SYSTEM_PROMPT = `You are Aria, a friendly, witty, and helpful AI calling assistant on TalkFusion, a voice-calling platform. 
 You are having a real-time voice conversation with the user.
 Keep your responses concise and conversational — 1-3 short sentences max.
 Be natural, warm, and engaging. Use a conversational tone, not formal.
@@ -17,7 +23,7 @@ If the user asks you something complex, give a clear simple spoken answer.
 CRITICAL: Always respond in the same language the user speaks to you.`;
 
 export async function getAiResponse(prompt) {
-    const result = await llm.invoke([
+    const result = await mistalmodel.invoke([
         new HumanMessage({ content: prompt }),
     ])
     return result.content
@@ -33,6 +39,6 @@ export async function getAiCallResponse(history, userMessage) {
         ),
         new HumanMessage(userMessage)
     ];
-    const result = await llm.invoke(messages);
+    const result = await mistalmodel.invoke(messages);
     return result.content;
 }

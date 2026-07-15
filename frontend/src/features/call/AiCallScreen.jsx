@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppStore } from '../../store/store';
+import { useSelector } from 'react-redux';
+import { selectUser } from '../auth/authSlice';
 import { getSocket } from '../../lib/socket';
 import { Mic, MicOff, PhoneOff, Volume2, VolumeX, Send, Bot } from 'lucide-react';
 
@@ -9,7 +10,7 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 
 export default function AiCallScreen() {
   const navigate = useNavigate();
-  const user = useAppStore(state => state.user);
+  const user = useSelector(selectUser);
   const socket = getSocket();
 
   const [callStarted, setCallStarted] = useState(false);
@@ -22,11 +23,16 @@ export default function AiCallScreen() {
   const [inputText, setInputText] = useState('');
   const [transcript, setTranscript] = useState('');
   const [callDuration, setCallDuration] = useState(0);
+  const [speechLanguage, setSpeechLanguage] = useState('hi-IN');
 
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
   const timerRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  const lastActiveTimeRef = useRef(Date.now());
+  // Stable ref so speakText can call startListening without a circular dep
+  const startListeningRef = useRef(null);
 
   // Auto-scroll messages
   useEffect(() => {
@@ -46,91 +52,7 @@ export default function AiCallScreen() {
     return `${m}:${(s % 60).toString().padStart(2, '0')}`;
   };
 
-  // Speak AI text out loud
-  const speakText = useCallback((text) => {
-    if (!speakerOn || !synthRef.current) return;
-    synthRef.current.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1.05;
-    utter.pitch = 1.1;
-    // Prefer a natural-sounding female voice
-    const voices = synthRef.current.getVoices();
-    const preferred = voices.find(v =>
-      v.name.includes('Samantha') || v.name.includes('Google UK English Female') ||
-      v.name.includes('Microsoft Aria') || v.name.includes('Female')
-    );
-    if (preferred) utter.voice = preferred;
-    utter.onstart = () => setIsSpeaking(true);
-    utter.onend = () => {
-      setIsSpeaking(false);
-      // Auto-restart listening after AI finishes speaking
-      if (micOn && callStarted) startListening();
-    };
-    synthRef.current.speak(utter);
-  }, [speakerOn, micOn, callStarted]);
-
-  // Socket listeners
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleAiThinking = (val) => setIsThinking(val);
-
-    const handleAiResponse = ({ text }) => {
-      setMessages(prev => [...prev, {
-        role: 'ai', text,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }]);
-      speakText(text);
-    };
-
-    socket.on('ai_thinking', handleAiThinking);
-    socket.on('ai_response', handleAiResponse);
-
-    return () => {
-      socket.off('ai_thinking', handleAiThinking);
-      socket.off('ai_response', handleAiResponse);
-    };
-  }, [socket, speakText]);
-
-  // Start speech recognition
-  const startListening = useCallback(() => {
-    if (!SpeechRecognition || !micOn || isThinking || isSpeaking) return;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-    recognitionRef.current = recognition;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => { setIsListening(false); setTranscript(''); };
-
-    recognition.onresult = (event) => {
-      const current = Array.from(event.results)
-        .map(r => r[0].transcript).join('');
-      setTranscript(current);
-
-      if (event.results[event.results.length - 1].isFinal) {
-        const finalText = current.trim();
-        if (finalText) {
-          sendMessageToAi(finalText);
-        }
-      }
-    };
-
-    recognition.onerror = (e) => {
-      if (e.error !== 'no-speech') console.error('Speech error:', e.error);
-      setIsListening(false);
-    };
-
-    recognition.start();
-  }, [micOn, isThinking, isSpeaking]);
-
-  const stopListening = () => {
-    recognitionRef.current?.stop();
-    setIsListening(false);
-    setTranscript('');
-  };
-
+  // ─── 1. sendMessageToAi (no deps on other custom fns) ─────────────────────
   const sendMessageToAi = useCallback((text) => {
     if (!text.trim() || !socket) return;
     setMessages(prev => [...prev, {
@@ -142,6 +64,174 @@ export default function AiCallScreen() {
     setTranscript('');
   }, [socket]);
 
+  // ─── 2. stopListening ─────────────────────────────────────────────────────
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsListening(false);
+    setTranscript('');
+  }, []);
+
+  // ─── 3. startListening (depends on sendMessageToAi & stopListening) ───────
+  const startListening = useCallback(() => {
+    if (!SpeechRecognition || !micOn || isThinking || isSpeaking) return;
+    // Don't double-start
+    if (recognitionRef.current) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = speechLanguage;
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      lastActiveTimeRef.current = Date.now();
+    };
+
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+      setTranscript('');
+    };
+
+    recognition.onresult = (event) => {
+      lastActiveTimeRef.current = Date.now(); // reset inactivity timer
+      const current = Array.from(event.results)
+        .map(r => r[0].transcript).join('');
+      setTranscript(current);
+      if (event.results[event.results.length - 1].isFinal) {
+        const finalText = current.trim();
+        if (finalText) sendMessageToAi(finalText);
+      }
+    };
+
+    recognition.onerror = (e) => {
+      if (e.error !== 'no-speech') console.error('Speech error:', e.error);
+      recognitionRef.current = null;
+      setIsListening(false);
+    };
+
+    recognition.start();
+  }, [micOn, isThinking, isSpeaking, speechLanguage, sendMessageToAi]);
+
+  // Keep ref in sync so speakText can always call the latest startListening
+  useEffect(() => {
+    startListeningRef.current = startListening;
+  }, [startListening]);
+
+  // ─── 4. Inactivity auto-mute after 10s of silence ─────────────────────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (micOn && !isThinking && !isSpeaking) {
+        if (Date.now() - lastActiveTimeRef.current >= 10000) {
+          setMicOn(false);
+          stopListening();
+        }
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [micOn, isThinking, isSpeaking, stopListening]);
+
+  // ─── 5. speakText (calls startListening via ref — no circular dep) ─────────
+  const speakText = useCallback((rawText) => {
+    if (!speakerOn || !synthRef.current) return;
+
+    // Strip markdown symbols TTS should not read aloud
+    const text = rawText.replace(/[*#_`]/g, '');
+    synthRef.current.cancel();
+
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1.05;
+    utter.pitch = 1.1;
+
+    const isHindi = /[\u0900-\u097F]/.test(text);
+    const chosenLang = isHindi ? 'hi-IN' : speechLanguage;
+
+    // Wait for voices to load (Chrome loads them async)
+    const applyVoiceAndSpeak = () => {
+      const voices = synthRef.current.getVoices();
+      let preferred = null;
+
+      if (chosenLang.startsWith('hi')) {
+        preferred = voices.find(v => v.lang.includes('hi') && (
+          v.name.includes('Swara') || v.name.includes('Lekha') ||
+          v.name.includes('Kalpana') || v.name.toLowerCase().includes('female')
+        ));
+        if (!preferred) preferred = voices.find(v => v.lang.includes('hi'));
+      }
+
+      if (!preferred && (chosenLang.includes('IN') || chosenLang.includes('in'))) {
+        preferred = voices.find(v => v.lang.includes('en-IN') && (
+          v.name.includes('Heera') || v.name.includes('Neerja') ||
+          v.name.toLowerCase().includes('female') || v.name.includes('Google')
+        ));
+        if (!preferred) preferred = voices.find(v => v.lang.includes('en-IN'));
+      }
+
+      if (!preferred) {
+        preferred = voices.find(v =>
+          v.name.includes('Google UK English Female') ||
+          v.name.includes('Microsoft Aria') ||
+          v.name.toLowerCase().includes('female')
+        ) || voices[0];
+      }
+
+      if (preferred) {
+        utter.voice = preferred;
+        utter.lang = preferred.lang;
+      } else {
+        utter.lang = chosenLang;
+      }
+
+      const onDone = () => {
+        setIsSpeaking(false);
+        lastActiveTimeRef.current = Date.now();
+        // Use ref to avoid circular dependency
+        startListeningRef.current?.();
+      };
+
+      utter.onstart = () => setIsSpeaking(true);
+      utter.onend = onDone;
+      utter.onerror = (e) => {
+        console.error('TTS error:', e.error);
+        onDone(); // Prevent app from getting stuck
+      };
+
+      synthRef.current.speak(utter);
+    };
+
+    const voices = synthRef.current.getVoices();
+    if (voices.length === 0) {
+      // Voices not loaded yet — wait for the event
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        applyVoiceAndSpeak();
+      };
+    } else {
+      applyVoiceAndSpeak();
+    }
+  }, [speakerOn, speechLanguage]);
+
+  // ─── Socket listeners ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!socket) return;
+    const handleAiThinking = (val) => setIsThinking(val);
+    const handleAiResponse = ({ text }) => {
+      setMessages(prev => [...prev, {
+        role: 'ai', text,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+      speakText(text);
+    };
+    socket.on('ai_thinking', handleAiThinking);
+    socket.on('ai_response', handleAiResponse);
+    return () => {
+      socket.off('ai_thinking', handleAiThinking);
+      socket.off('ai_response', handleAiResponse);
+    };
+  }, [socket, speakText]);
+
   const handleTextSend = (e) => {
     e.preventDefault();
     if (inputText.trim()) sendMessageToAi(inputText.trim());
@@ -151,9 +241,9 @@ export default function AiCallScreen() {
     if (!socket) { alert('Not connected to server. Please refresh.'); return; }
     setCallStarted(true);
     setMessages([]);
+    lastActiveTimeRef.current = Date.now();
     socket.emit('ai_call_start');
-    // Start listening after a short delay to let greeting arrive
-    setTimeout(() => startListening(), 3000);
+    setTimeout(() => startListeningRef.current?.(), 3000);
   };
 
   const endCall = () => {
@@ -165,15 +255,20 @@ export default function AiCallScreen() {
   };
 
   const toggleMic = () => {
-    if (isListening) stopListening();
-    else startListening();
-    setMicOn(prev => !prev);
+    const next = !micOn;
+    setMicOn(next);
+    if (!next) stopListening();
+    else {
+      lastActiveTimeRef.current = Date.now();
+      startListeningRef.current?.();
+    }
   };
 
   const toggleSpeaker = () => {
     if (isSpeaking) synthRef.current?.cancel();
     setSpeakerOn(prev => !prev);
   };
+
 
   // Waveform bars for visual feedback
   const WaveBar = ({ delay }) => (
@@ -226,6 +321,28 @@ export default function AiCallScreen() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Language:</span>
+            <select
+              value={speechLanguage}
+              onChange={(e) => setSpeechLanguage(e.target.value)}
+              className="input-field"
+              style={{
+                padding: '4px 8px',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                width: '140px',
+                background: 'rgba(0, 0, 0, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: 'white'
+              }}
+            >
+              <option value="hi-IN">Hindi (Indian Girl)</option>
+              <option value="en-IN">English (Indian Accent)</option>
+              <option value="en-US">English (US Accent)</option>
+            </select>
+          </div>
+
           {callStarted && (
             <div style={{
               background: 'rgba(0,0,0,0.4)', padding: '4px 12px',

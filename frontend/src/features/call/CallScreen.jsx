@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useAppStore } from '../../store/store';
+import { useSelector } from 'react-redux';
+import { selectUser } from '../auth/authSlice';
 import { getSocket } from '../../lib/socket';
 import { WebRTCManager } from '../../lib/webrtc';
 import Controls from './Controls';
@@ -12,7 +13,7 @@ export default function CallScreen() {
   const { id: roomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const user = useAppStore(state => state.user);
+  const user = useSelector(selectUser);
   const socket = getSocket();
 
   const localVideoRef = useRef(null);
@@ -165,74 +166,48 @@ export default function CallScreen() {
   };
 
   if (!user) return null;
-
   const callerName = targetUserFromState?.name || targetUserFromState?.username || 'User';
 
   return (
-    <div style={{
-      display: 'flex', gap: '1.5rem', height: '100vh',
-      padding: '1.5rem', background: 'var(--bg-dark)', overflow: 'hidden'
-    }}>
-      {/* Video Section */}
-      <div style={{ flex: '2', display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0 }}>
+    <div className="flex gap-4 h-screen p-4 bg-slate-950 overflow-hidden">
 
+      {/* ── Video Section ─────────────────────────────────────────── */}
+      <div className="flex-[2] flex flex-col gap-3 min-w-0">
         {/* Remote Video */}
-        <div className="glass-panel" style={{
-          flex: 1, position: 'relative', overflow: 'hidden',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0f172a, #1e293b)', borderRadius: '20px'
-        }}>
+        <div className="glass relative flex-1 overflow-hidden flex items-center justify-center bg-gradient-to-br from-slate-950 to-slate-900 rounded-2xl">
           <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: callActive ? 1 : 0, transition: 'opacity 0.5s' }}
+            ref={remoteVideoRef} autoPlay playsInline
+            className={`w-full h-full object-cover transition-opacity duration-500 ${callActive ? 'opacity-100' : 'opacity-0'}`}
           />
           {!callActive && (
-            <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', color: 'var(--text-muted)' }}>
-              <div style={{
-                width: '100px', height: '100px', borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--primary), #8b5cf6)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '2.5rem', fontWeight: 700, color: 'white',
-                boxShadow: '0 0 40px rgba(59,130,246,0.4)'
-              }}>
+            <div className="absolute flex flex-col items-center gap-4 text-slate-400">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-4xl font-bold text-white shadow-[0_0_40px_rgba(59,130,246,0.4)]">
                 {callerName.charAt(0).toUpperCase()}
               </div>
-              <h3 style={{ color: 'white', margin: 0 }}>{callerName}</h3>
-              <p style={{ margin: 0, fontSize: '0.9rem' }}>
-                {isInitiator ? 'Calling...' : 'Connecting...'}
-              </p>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary)', animation: 'pulse 1.5s 0s infinite' }}></span>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary)', animation: 'pulse 1.5s 0.3s infinite' }}></span>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary)', animation: 'pulse 1.5s 0.6s infinite' }}></span>
+              <h3 className="text-white text-xl">{callerName}</h3>
+              <p className="text-sm">{isInitiator ? 'Calling…' : 'Connecting…'}</p>
+              <div className="flex gap-2">
+                {[0, 0.3, 0.6].map((d, i) => (
+                  <span key={i} className="pulse-dot w-2 h-2 rounded-full bg-blue-500 inline-block" style={{ animationDelay: `${d}s` }} />
+                ))}
               </div>
             </div>
           )}
-
-          {/* Timer — top right */}
-          <div style={{ position: 'absolute', top: '20px', left: '20px' }}>
+          {/* Timer */}
+          <div className="absolute top-4 left-4">
             <Timer isActive={callActive} />
           </div>
-
-          {/* Local Video PiP — bottom right */}
-          <div style={{
-            position: 'absolute', bottom: '20px', right: '20px',
-            width: '160px', height: '120px', borderRadius: '12px',
-            overflow: 'hidden', border: '2px solid rgba(255,255,255,0.2)',
-            background: '#0f172a', boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
-          }}>
-            <video ref={localVideoRef} autoPlay playsInline muted
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
+          {/* Local PiP */}
+          <div className="absolute bottom-4 right-4 w-40 h-28 rounded-xl overflow-hidden border-2 border-white/20 bg-slate-950 shadow-2xl">
+            <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
           </div>
         </div>
 
         {/* Controls Bar */}
-        <div className="glass-panel" style={{ padding: '1rem 2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              {callActive ? `In call with ${callerName}` : 'Connecting...'}
+        <div className="glass px-6 py-3">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400 text-sm">
+              {callActive ? `In call with ${callerName}` : 'Connecting…'}
             </span>
             <Controls
               micOn={micOn} toggleMic={toggleMic}
@@ -240,15 +215,16 @@ export default function CallScreen() {
               speakerOn={speakerOn} toggleSpeaker={toggleSpeaker}
               onEndCall={() => endCall(true)}
             />
-            <span style={{ width: '120px' }}></span>
+            <span className="w-32" />
           </div>
         </div>
       </div>
 
-      {/* Chat Sidebar */}
-      <div style={{ width: '320px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+      {/* ── Chat Sidebar ──────────────────────────────────────────── */}
+      <div className="w-72 shrink-0 flex flex-col">
         <Chat socket={socket} roomId={roomId} currentUser={user} />
       </div>
     </div>
   );
 }
+

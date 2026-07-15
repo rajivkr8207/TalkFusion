@@ -1,71 +1,76 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAppStore } from '../../store/store';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { useForm } from "../../hooks/useForm";
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const setUser = useAppStore(state => state.setUser);
+  const { handleLogin, loading, error, handleClearError } = useAuth();
+  const [form, handleChange] = useForm({ email: "", password: "" });
 
-  const handleLogin = async (e) => {
+  useEffect(() => { handleClearError(); }, []); // eslint-disable-line
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/user/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Login failed');
-      
-      setUser(data.data);
-      navigate('/');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    await handleLogin(form);
   };
 
   return (
-    <div className="container flex-center" style={{ minHeight: '100vh' }}>
-      <div className="glass-panel animate-fade-in" style={{ padding: '2.5rem', width: '100%', maxWidth: '400px' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '2rem', fontSize: '1.8rem' }}>Welcome Back</h2>
-        {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="min-h-screen flex items-center justify-center p-8">
+      <div className="glass animate-fade-up w-full max-w-md p-10">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            TalkFusion
+          </h1>
+          <p className="text-slate-400 mt-1 text-sm">Welcome back</p>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 text-sm mb-5">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Email</label>
-            <input 
-              type="email" 
-              className="input-field" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-              required 
+            <label htmlFor="email" className="block text-slate-400 text-sm mb-1.5">
+              Email
+            </label>
+            <input
+              id="email" name="email" type="email"
+              className="tf-input"
+              value={form.email} onChange={handleChange}
+              placeholder="you@example.com" required autoComplete="email"
             />
           </div>
+
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Password</label>
-            <input 
-              type="password" 
-              className="input-field" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
+            <label htmlFor="password" className="block text-slate-400 text-sm mb-1.5">
+              Password
+            </label>
+            <input
+              id="password" name="password" type="password"
+              className="tf-input"
+              value={form.password} onChange={handleChange}
+              placeholder="••••••••" required autoComplete="current-password"
             />
           </div>
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
-            {loading ? 'Logging in...' : 'Log In'}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-1 w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-95"
+          >
+            {loading ? "Signing in…" : "Log In"}
           </button>
         </form>
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', color: 'var(--text-muted)' }}>
-          Don't have an account? <Link to="/register" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Register</Link>
+
+        <p className="text-center mt-6 text-slate-400 text-sm">
+          Don't have an account?{" "}
+          <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+            Register
+          </Link>
         </p>
       </div>
     </div>

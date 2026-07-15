@@ -1,69 +1,70 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAppStore } from '../../store/store';
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { useForm } from "../../hooks/useForm";
 
 export default function Register() {
-  const [username, setUsername] = useState('');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const setUser = useAppStore(state => state.setUser);
+  const { handleRegister, loading, error, handleClearError } = useAuth();
+  const [form, handleChange] = useForm({ name: "", username: "", email: "", password: "" });
 
-  const handleRegister = async (e) => {
+  useEffect(() => { handleClearError(); }, []); // eslint-disable-line
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/v1/user/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, name, email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Registration failed');
-      
-      setUser(data.data);
-      navigate('/');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    await handleRegister(form);
   };
 
   return (
-    <div className="container flex-center" style={{ minHeight: '100vh' }}>
-      <div className="glass-panel animate-fade-in" style={{ padding: '2.5rem', width: '100%', maxWidth: '400px' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '2rem', fontSize: '1.8rem' }}>Create Account</h2>
-        {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
-        <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Name</label>
-            <input type="text" className="input-field" value={name} onChange={e => setName(e.target.value)} required minLength={3} />
+    <div className="min-h-screen flex items-center justify-center p-8">
+      <div className="glass animate-fade-up w-full max-w-md p-10">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            TalkFusion
+          </h1>
+          <p className="text-slate-400 mt-1 text-sm">Create your account</p>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 text-sm mb-5">
+            {error}
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Username</label>
-            <input type="text" className="input-field" value={username} onChange={e => setUsername(e.target.value)} required minLength={6} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Email</label>
-            <input type="email" className="input-field" value={email} onChange={e => setEmail(e.target.value)} required />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Password</label>
-            <input type="password" className="input-field" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
-          </div>
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '1rem', width: '100%' }} disabled={loading}>
-            {loading ? 'Creating Account...' : 'Register'}
+        )}
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {[
+            { id: "name",     label: "Display Name", type: "text",     ph: "John Doe",        min: 3 },
+            { id: "username", label: "Username",      type: "text",     ph: "johndoe",         min: 6 },
+            { id: "email",    label: "Email",         type: "email",    ph: "you@example.com"        },
+            { id: "password", label: "Password",      type: "password", ph: "Min. 6 characters", min: 6 },
+          ].map(({ id, label, type, ph, min }) => (
+            <div key={id}>
+              <label htmlFor={id} className="block text-slate-400 text-sm mb-1.5">{label}</label>
+              <input
+                id={id} name={id} type={type}
+                className="tf-input"
+                value={form[id]} onChange={handleChange}
+                placeholder={ph} required minLength={min}
+                autoComplete={id === "password" ? "new-password" : id}
+              />
+            </div>
+          ))}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-2 w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-all duration-200 hover:scale-[1.02] active:scale-95"
+          >
+            {loading ? "Creating account…" : "Create Account"}
           </button>
         </form>
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', color: 'var(--text-muted)' }}>
-          Already have an account? <Link to="/login" style={{ color: 'var(--primary)', textDecoration: 'none' }}>Log in</Link>
+
+        <p className="text-center mt-6 text-slate-400 text-sm">
+          Already have an account?{" "}
+          <Link to="/login" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+            Log in
+          </Link>
         </p>
       </div>
     </div>

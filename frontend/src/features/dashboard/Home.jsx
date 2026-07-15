@@ -1,130 +1,81 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAppStore } from '../../store/store';
-import { initSocket, getSocket } from '../../lib/socket';
-import ActiveUsersList from './ActiveUsersList';
-import Matchmaking from './Matchmaking';
-import { Phone, PhoneOff, User, Bot, Sparkles } from 'lucide-react';
+import React, { useState, useCallback } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { useAuth } from "../../hooks/useAuth";
+import { useSocket, useSocketEvent } from "../../hooks/useSocket";
+import { selectActiveUsers } from "../users/usersSlice";
+import { getSocket } from "../../lib/socket";
+import ActiveUsersList from "./ActiveUsersList";
+import Matchmaking from "./Matchmaking";
+import { Bot, Phone, PhoneOff } from "lucide-react";
 
 export default function Home() {
-  const user = useAppStore(state => state.user);
-  const activeUsers = useAppStore(state => state.activeUsers);
-  const setActiveUsers = useAppStore(state => state.setActiveUsers);
-  const clearAuth = useAppStore(state => state.clearAuth);
-
-  const [isSearching, setIsSearching] = useState(false);
-  const [incomingCall, setIncomingCall] = useState(null); // { userId, name, offer }
+  const { user, handleLogout } = useAuth();
   const navigate = useNavigate();
-  const incomingCallRef = useRef(null);
+  const activeUsers = useSelector(selectActiveUsers);
+  const [isSearching, setIsSearching] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+  useSocket(user);
 
-    const socket = initSocket();
-    socket.emit('register_user', user);
+  const handleMatchFound = useCallback((data) => {
+    setIsSearching(false);
+    navigate(`/call/${data.roomId}`, { state: { callData: data, isRandomMatch: true } });
+  }, [navigate]);
 
-    socket.on('active_users_list', (users) => {
-      setActiveUsers(users);
+  const handleVoiceOffer = useCallback((data) => {
+    const callerInfo = activeUsers.find((u) => u.socketId === data.userId);
+    setIncomingCall({
+      socketId: data.userId,
+      name: callerInfo?.name || callerInfo?.username || "Unknown User",
+      offer: data.offer,
     });
+  }, [activeUsers]);
 
-    socket.on('random_match_found', (data) => {
-      setIsSearching(false);
-      navigate(`/call/${data.roomId}`, { state: { callData: data, isRandomMatch: true } });
-    });
-
-    // Incoming direct call — show a nice modal instead of window.confirm
-    socket.on('voice_offer', (data) => {
-      incomingCallRef.current = data;
-      const callerInfo = Array.from(activeUsers).find
-        ? activeUsers.find(u => u.socketId === data.userId)
-        : null;
-      setIncomingCall({
-        socketId: data.userId,
-        name: callerInfo?.name || callerInfo?.username || 'Unknown User',
-        offer: data.offer
-      });
-    });
-
-    return () => {
-      socket.off('active_users_list');
-      socket.off('random_match_found');
-      socket.off('voice_offer');
-    };
-  }, [user, navigate, setActiveUsers]);
-
-  const handleLogout = async () => {
-    const socket = getSocket();
-    if (socket) socket.disconnect();
-    clearAuth();
-    navigate('/login');
-  };
+  useSocketEvent("random_match_found", handleMatchFound);
+  useSocketEvent("voice_offer", handleVoiceOffer);
 
   const joinMatchmaking = () => {
     const socket = getSocket();
-    if (socket) { socket.emit('join_random_matchmaking'); setIsSearching(true); }
+    if (socket) { socket.emit("join_random_matchmaking"); setIsSearching(true); }
   };
-
   const leaveMatchmaking = () => {
     const socket = getSocket();
-    if (socket) { socket.emit('leave_random_matchmaking'); setIsSearching(false); }
+    if (socket) { socket.emit("leave_random_matchmaking"); setIsSearching(false); }
   };
-
   const handleDirectCall = (targetUser) => {
     const roomId = `direct_${Date.now()}`;
     navigate(`/call/${roomId}`, { state: { targetUser, isInitiator: true } });
   };
-
   const acceptIncomingCall = () => {
     if (!incomingCall) return;
-    const roomId = `direct_incoming_${Date.now()}`;
-    navigate(`/call/${roomId}`, {
-      state: {
-        targetUser: { socketId: incomingCall.socketId, name: incomingCall.name },
-        isInitiator: false,
-        incomingOffer: incomingCall.offer
-      }
+    navigate(`/call/incoming_${Date.now()}`, {
+      state: { targetUser: { socketId: incomingCall.socketId, name: incomingCall.name }, isInitiator: false, incomingOffer: incomingCall.offer },
     });
     setIncomingCall(null);
   };
-
-  const declineIncomingCall = () => {
-    setIncomingCall(null);
-  };
+  const declineIncomingCall = () => setIncomingCall(null);
 
   if (!user) return null;
-
-  const initials = (user.name || '?').charAt(0).toUpperCase();
+  const initials = (user.name || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="container animate-fade-in">
-      {/* Incoming Call Modal */}
+    <div className="max-w-5xl mx-auto px-6 py-10 animate-fade-up">
+
+      {/* ── Incoming Call Modal ───────────────────────────────────────── */}
       {incomingCall && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          background: 'rgba(0,0,0,0.7)', display: 'flex',
-          alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(8px)'
-        }}>
-          <div className="glass-panel" style={{ padding: '2.5rem', textAlign: 'center', maxWidth: '340px', width: '100%' }}>
-            <div style={{
-              width: '80px', height: '80px', borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--primary), #8b5cf6)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '2rem', fontWeight: 700, color: 'white',
-              margin: '0 auto 1.5rem', boxShadow: '0 0 40px rgba(59,130,246,0.4)'
-            }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md">
+          <div className="glass p-10 text-center max-w-sm w-full">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white mx-auto mb-6 shadow-[0_0_40px_rgba(59,130,246,0.4)]">
               {incomingCall.name.charAt(0).toUpperCase()}
             </div>
-            <h3 style={{ marginBottom: '0.25rem' }}>{incomingCall.name}</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Incoming Call...</p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <button onClick={declineIncomingCall} className="btn-icon" style={{ background: 'var(--danger)', width: 60, height: 60 }}>
+            <h3 className="text-xl mb-1">{incomingCall.name}</h3>
+            <p className="text-slate-400 mb-8 text-sm">Incoming Call…</p>
+            <div className="flex gap-4 justify-center">
+              <button onClick={declineIncomingCall} className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-400 text-white flex items-center justify-center transition-all hover:scale-105">
                 <PhoneOff size={24} />
               </button>
-              <button onClick={acceptIncomingCall} className="btn-icon" style={{ background: 'var(--success)', width: 60, height: 60 }}>
+              <button onClick={acceptIncomingCall} className="w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center transition-all hover:scale-105">
                 <Phone size={24} />
               </button>
             </div>
@@ -132,70 +83,54 @@ export default function Home() {
         </div>
       )}
 
-      {/* Top Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
+      {/* ── Header ───────────────────────────────────────────────────── */}
+      <header className="flex justify-between items-center mb-12">
         <div>
-          <h1 style={{ fontSize: '2rem', margin: 0 }}>CallingWeb</h1>
-          <p style={{ color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>Welcome back, {user.name}</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            TalkFusion
+          </h1>
+          <p className="text-slate-400 mt-1 text-sm">Welcome back, {user.name}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link to="/profile" style={{
-            width: '40px', height: '40px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--primary), #8b5cf6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: '700', fontSize: '1.1rem', color: 'white', textDecoration: 'none',
-            boxShadow: '0 4px 16px rgba(59,130,246,0.3)', transition: 'transform 0.2s'
-          }}>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/profile"
+            title="Profile"
+            className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold text-white no-underline shadow-lg hover:scale-110 transition-transform"
+          >
             {initials}
           </Link>
-          <button onClick={handleLogout} className="btn" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 text-sm font-medium transition-all"
+          >
             Logout
           </button>
         </div>
       </header>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      {/* ── Content ──────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-6">
         <Matchmaking isSearching={isSearching} onJoin={joinMatchmaking} onLeave={leaveMatchmaking} />
 
         {/* AI Call Card */}
-        <div className="glass-panel" style={{
-          padding: '2rem', display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', gap: '2rem',
-          background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.1))',
-          border: '1px solid rgba(139,92,246,0.3)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-            <div style={{
-              width: '64px', height: '64px', borderRadius: '50%',
-              background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 24px rgba(139,92,246,0.4)'
-            }}>
+        <div className="glass p-6 flex items-center justify-between gap-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-[0_0_24px_rgba(139,92,246,0.4)]">
               <Bot size={32} color="white" />
             </div>
             <div>
-              <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.2rem' }}>Talk with Aria AI</h3>
-              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                Have a real voice conversation with your AI assistant. Ask anything, anytime.
-              </p>
+              <h3 className="text-lg font-semibold mb-1">Talk with Aria AI</h3>
+              <p className="text-slate-400 text-sm">Have a real voice conversation with your AI assistant. Ask anything, anytime.</p>
             </div>
           </div>
-          <Link to="/ai-call" style={{ textDecoration: 'none' }}>
-            <button className="btn" style={{
-              background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
-              color: 'white', padding: '0.75rem 1.75rem', fontSize: '1rem',
-              boxShadow: '0 4px 16px rgba(139,92,246,0.4)', whiteSpace: 'nowrap'
-            }}>
+          <Link to="/ai-call" className="no-underline shrink-0">
+            <button className="px-6 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold hover:opacity-90 transition-all shadow-[0_4px_16px_rgba(139,92,246,0.4)] whitespace-nowrap hover:scale-105">
               📞 Call Aria
             </button>
           </Link>
         </div>
 
-        <ActiveUsersList
-          users={activeUsers.filter(u => u.userId !== user.id)}
-          currentUser={user}
-          onCallUser={handleDirectCall}
-        />
+        <ActiveUsersList users={activeUsers.filter((u) => u.userId !== user.id)} currentUser={user} onCallUser={handleDirectCall} />
       </div>
     </div>
   );
