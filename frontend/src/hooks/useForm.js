@@ -1,15 +1,6 @@
 import { useState, useCallback } from "react";
 
-/**
- * useForm — lightweight controlled-form hook.
- *
- * @param {Object} initialValues - initial field values
- * @returns [values, handleChange, resetForm, setValues]
- *
- * Usage:
- *   const [form, handleChange, reset] = useForm({ email: '', password: '' });
- *   <input name="email" value={form.email} onChange={handleChange} />
- */
+
 export const useForm = (initialValues) => {
   const [values, setValues] = useState(initialValues);
 

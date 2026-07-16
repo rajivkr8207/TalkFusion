@@ -13,7 +13,6 @@ Middleware(app)
 app.use('/api/v1/health', Healthroute)
 app.use('/api/v1/user', Userroute)
 
-
 app.get(/(.*)/, (req, res) => {
     res.sendFile(path.resolve("public", "dist", "index.html"));
 });
