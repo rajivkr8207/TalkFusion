@@ -1,4 +1,5 @@
 import { getAiResponse } from "../services/ai.service.js";
+import { getMCPclient } from "../services/mcp.service.js";
 
 export const handleSocketChat = (socket, io) => {
     // Original AI chat
@@ -9,6 +10,14 @@ export const handleSocketChat = (socket, io) => {
             const response = await getAiResponse(message);
             socket.emit("typing", false);
             socket.emit("receive_message", { response });
+            const client = await getMCPclient();
+            const tools = await client.getTools();
+            const tool = tools.find((t) => t.name === "run_program");
+            if (tool) {
+                await client.runTool("run_program", { program: "calc" });
+                client.tools
+            }
+
         } catch (err) {
             console.error(err);
             socket.emit("error", "Something went wrong");
@@ -29,4 +38,4 @@ export const handleSocketChat = (socket, io) => {
         if (!roomId) return;
         socket.to(roomId).emit("typing_indicator", { userId, isTyping });
     });
-};
+};
