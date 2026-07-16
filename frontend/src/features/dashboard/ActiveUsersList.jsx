@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function ActiveUsersList({ users, currentUser, onCallUser }) {
   return (
-    <div className="glass p-6 mt-2">
+    <div className="glass p-4 md:p-6 mt-2">
       <h3 className="text-base font-semibold mb-5">
         Active Users <span className="ml-2 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-xs">{users.length}</span>
       </h3>
@@ -21,9 +21,9 @@ export default function ActiveUsersList({ users, currentUser, onCallUser }) {
             return (
               <div
                 key={u.socketId || u.userId}
-                className="glass-card flex items-center justify-between p-4"
+                className="glass-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-3 sm:gap-0"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold text-white text-sm shrink-0">
                     {initial}
                   </div>
@@ -35,7 +35,7 @@ export default function ActiveUsersList({ users, currentUser, onCallUser }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
                   <div className="flex items-center gap-1.5">
                     <span className={`status-dot ${u.status === 'in-call' ? 'in-call' : ''}`} />
                     <span className="text-xs text-slate-400">{u.status || 'online'}</span>

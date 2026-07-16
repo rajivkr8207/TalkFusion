@@ -60,12 +60,12 @@ export default function Home() {
   const initials = (user.name || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10 animate-fade-up">
+    <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-10 animate-fade-up">
 
       {/* ── Incoming Call Modal ───────────────────────────────────────── */}
       {incomingCall && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md">
-          <div className="glass p-10 text-center max-w-sm w-full">
+          <div className="glass p-6 md:p-10 text-center max-w-sm w-full mx-4 md:mx-auto">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white mx-auto mb-6 shadow-[0_0_40px_rgba(59,130,246,0.4)]">
               {incomingCall.name.charAt(0).toUpperCase()}
             </div>
@@ -84,7 +84,7 @@ export default function Home() {
       )}
 
       {/* ── Header ───────────────────────────────────────────────────── */}
-      <header className="flex justify-between items-center mb-12">
+      <header className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 md:mb-12 text-center sm:text-left">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             TalkFusion
@@ -113,8 +113,8 @@ export default function Home() {
         <Matchmaking isSearching={isSearching} onJoin={joinMatchmaking} onLeave={leaveMatchmaking} />
 
         {/* AI Call Card */}
-        <div className="glass p-6 flex items-center justify-between gap-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30">
-          <div className="flex items-center gap-5">
+        <div className="glass p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30 text-center md:text-left">
+          <div className="flex flex-col md:flex-row items-center gap-4 md:gap-5">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-[0_0_24px_rgba(139,92,246,0.4)]">
               <Bot size={32} color="white" />
             </div>
@@ -123,8 +123,8 @@ export default function Home() {
               <p className="text-slate-400 text-sm">Have a real voice conversation with your AI assistant. Ask anything, anytime.</p>
             </div>
           </div>
-          <Link to="/ai-call" className="no-underline shrink-0">
-            <button className="px-6 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold hover:opacity-90 transition-all shadow-[0_4px_16px_rgba(139,92,246,0.4)] whitespace-nowrap hover:scale-105">
+          <Link to="/ai-call" className="no-underline shrink-0 w-full md:w-auto">
+            <button className="w-full md:w-auto px-6 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold hover:opacity-90 transition-all shadow-[0_4px_16px_rgba(139,92,246,0.4)] whitespace-nowrap hover:scale-105">
               📞 Call Aria
             </button>
           </Link>

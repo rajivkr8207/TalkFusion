@@ -22,14 +22,14 @@ export default function Profile() {
   const initials = (user.name || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
+    <div className="min-h-screen px-4 md:px-6 py-8 md:py-12 max-w-2xl mx-auto">
       {/* Back */}
       <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-8 transition-colors no-underline">
         ← Back to Dashboard
       </Link>
 
       {/* Avatar card */}
-      <div className="glass animate-fade-up p-10 mb-4 text-center">
+      <div className="glass animate-fade-up p-6 md:p-10 mb-4 text-center">
         <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-4xl font-bold text-white mx-auto mb-4 shadow-[0_8px_32px_rgba(59,130,246,0.35)]">
           {initials}
         </div>
@@ -49,7 +49,7 @@ export default function Profile() {
       </div>
 
       {/* Edit form */}
-      <div className="glass animate-fade-up p-8">
+      <div className="glass animate-fade-up p-5 md:p-8">
         <h3 className="text-lg pb-4 mb-6 border-b border-white/10">Edit Profile</h3>
 
         {updateSuccess && (

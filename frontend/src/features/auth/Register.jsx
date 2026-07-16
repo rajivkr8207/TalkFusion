@@ -15,8 +15,8 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-8">
-      <div className="glass animate-fade-up w-full max-w-md p-10">
+    <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
+      <div className="glass animate-fade-up w-full max-w-md p-6 md:p-10">
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">

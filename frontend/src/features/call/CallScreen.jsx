@@ -169,10 +169,10 @@ export default function CallScreen() {
   const callerName = targetUserFromState?.name || targetUserFromState?.username || 'User';
 
   return (
-    <div className="flex gap-4 h-screen p-4 bg-slate-950 overflow-hidden">
+    <div className="flex flex-col md:flex-row gap-2 md:gap-4 h-screen p-2 md:p-4 bg-slate-950 overflow-hidden">
 
       {/* ── Video Section ─────────────────────────────────────────── */}
-      <div className="flex-[2] flex flex-col gap-3 min-w-0">
+      <div className="flex-1 md:flex-[2] flex flex-col gap-2 md:gap-3 min-w-0">
         {/* Remote Video */}
         <div className="glass relative flex-1 overflow-hidden flex items-center justify-center bg-gradient-to-br from-slate-950 to-slate-900 rounded-2xl">
           <video
@@ -198,14 +198,14 @@ export default function CallScreen() {
             <Timer isActive={callActive} />
           </div>
           {/* Local PiP */}
-          <div className="absolute bottom-4 right-4 w-40 h-28 rounded-xl overflow-hidden border-2 border-white/20 bg-slate-950 shadow-2xl">
+          <div className="absolute bottom-4 right-4 w-28 h-20 md:w-40 md:h-28 rounded-xl overflow-hidden border-2 border-white/20 bg-slate-950 shadow-2xl">
             <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
           </div>
         </div>
 
         {/* Controls Bar */}
-        <div className="glass px-6 py-3">
-          <div className="flex items-center justify-between">
+        <div className="glass px-4 py-3 md:px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0">
             <span className="text-slate-400 text-sm">
               {callActive ? `In call with ${callerName}` : 'Connecting…'}
             </span>
@@ -215,13 +215,13 @@ export default function CallScreen() {
               speakerOn={speakerOn} toggleSpeaker={toggleSpeaker}
               onEndCall={() => endCall(true)}
             />
-            <span className="w-32" />
+            <span className="hidden md:block w-32" />
           </div>
         </div>
       </div>
 
       {/* ── Chat Sidebar ──────────────────────────────────────────── */}
-      <div className="w-72 shrink-0 flex flex-col">
+      <div className="w-full h-[40%] md:h-auto md:w-72 shrink-0 flex flex-col relative z-10">
         <Chat socket={socket} roomId={roomId} currentUser={user} />
       </div>
     </div>

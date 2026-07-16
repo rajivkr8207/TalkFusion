@@ -3,7 +3,7 @@ import { Users } from 'lucide-react';
 
 export default function Matchmaking({ isSearching, onJoin, onLeave }) {
   return (
-    <div className="glass p-8 text-center">
+    <div className="glass p-6 md:p-8 text-center">
       <div className="flex justify-center mb-6">
         <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${isSearching ? 'bg-blue-500/20 animate-pulse' : 'bg-white/5'}`}>
           <Users size={40} color={isSearching ? '#3b82f6' : '#94a3b8'} />
